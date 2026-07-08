@@ -163,6 +163,12 @@ export default function Home() {
     expense: '#ef4444', // Merah untuk pengeluaran
   };
 
+  // Custom label untuk pie chart dengan pengecekan undefined
+  const renderCustomLabel = ({ name, percent }: { name?: string; percent?: number }) => {
+    if (!name || !percent) return '';
+    return `${name} ${(percent * 100).toFixed(1)}%`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -258,7 +264,7 @@ export default function Home() {
                     paddingAngle={5}
                     dataKey="value"
                     stroke="none"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                    label={renderCustomLabel}
                     labelLine={true}
                   >
                     {incomeExpenseData.map((entry, index) => (
