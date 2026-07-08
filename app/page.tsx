@@ -21,15 +21,23 @@ interface Transaction {
   date: string;
 }
 
+// Tipe untuk data pie chart
+interface PieData {
+  name: string;
+  value: number;
+  type: 'income' | 'expense';
+}
+
 export default function Home() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'terbaru' | 'terlama'>('terbaru');
 
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState<string>('light');
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn');
@@ -77,7 +85,7 @@ export default function Home() {
 
     if (!error) {
       // Hapus dari tampilan aplikasi
-      setTransactions(transactions.filter((trx) => trx.id !== id));
+      setTransactions(transactions.filter((trx: Transaction) => trx.id !== id));
     } else {
       alert('Gagal menghapus data.');
     }
@@ -95,6 +103,10 @@ export default function Home() {
     }
   };
 
+  const toggleSortOrder = () => {
+    setSortOrder(sortOrder === 'terbaru' ? 'terlama' : 'terbaru');
+  };
+
   const formatRupiah = (angka: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -104,12 +116,12 @@ export default function Home() {
   };
 
   const getCategoryName = (id: string) => {
-    const category = categories.find((c) => c.id === id);
+    const category = categories.find((c: Category) => c.id === id);
     return category ? category.name : 'Kategori Tidak Ditemukan';
   };
 
   const availableMonths = useMemo(() => {
-    const months = new Set(transactions.map((t) => t.date.substring(0, 7)));
+    const months = new Set(transactions.map((t: Transaction) => t.date.substring(0, 7)));
     return Array.from(months).sort().reverse();
   }, [transactions]);
 
@@ -121,23 +133,36 @@ export default function Home() {
   };
 
   const displayedTransactions = useMemo(() => {
-    if (selectedMonth === 'all') return transactions;
-    return transactions.filter((t) => t.date.startsWith(selectedMonth));
-  }, [transactions, selectedMonth]);
+    // Filter berdasarkan bulan
+    let filtered = selectedMonth === 'all' 
+      ? transactions 
+      : transactions.filter((t: Transaction) => t.date.startsWith(selectedMonth));
+    
+    // Sort berdasarkan tanggal
+    return filtered.sort((a: Transaction, b: Transaction) => {
+      if (sortOrder === 'terbaru') {
+        // Terbaru ke terlama (descending)
+        return b.date.localeCompare(a.date);
+      } else {
+        // Terlama ke terbaru (ascending)
+        return a.date.localeCompare(b.date);
+      }
+    });
+  }, [transactions, selectedMonth, sortOrder]);
 
   const totalIncome = displayedTransactions
-    .filter((t) => t.type === 'pemasukan')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((t: Transaction) => t.type === 'pemasukan')
+    .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
 
   const totalExpense = displayedTransactions
-    .filter((t) => t.type === 'pengeluaran')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((t: Transaction) => t.type === 'pengeluaran')
+    .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
 
   const balance = totalIncome - totalExpense;
 
   // Data untuk grafik pie perbandingan pemasukan vs pengeluaran
-  const incomeExpenseData = useMemo(() => {
-    const data = [];
+  const incomeExpenseData = useMemo((): PieData[] => {
+    const data: PieData[] = [];
     
     if (totalIncome > 0) {
       data.push({
@@ -260,7 +285,7 @@ export default function Home() {
                   className="cursor-pointer rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium outline-none transition hover:border-gray-300 focus:ring-1 focus:ring-blue-500 dark:border-[#333333] dark:bg-black dark:text-gray-200 dark:hover:border-[#444444] focus:outline-none"
                 >
                   <option value="all">Semua Waktu</option>
-                  {availableMonths.map((month) => (
+                  {availableMonths.map((month: string) => (
                     <option key={month} value={month}>
                       {formatMonthLabel(month)}
                     </option>
@@ -305,7 +330,7 @@ export default function Home() {
                         label={renderCustomLabel}
                         labelLine={false}
                       >
-                        {incomeExpenseData.map((entry, index) => (
+                        {incomeExpenseData.map((entry: PieData, index: number) => (
                           <Cell 
                             key={`cell-${index}`} 
                             fill={entry.type === 'income' ? COLORS.income : COLORS.expense}
@@ -364,6 +389,16 @@ export default function Home() {
           <section>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Transaksi Terakhir</h3>
+              {/* Tombol Sort */}
+              <button
+                onClick={toggleSortOrder}
+                className="flex items-center gap-1 rounded-xl bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100 dark:bg-[#111111] dark:border-[#222222] dark:text-gray-400 dark:hover:bg-[#1a1a1a] focus:outline-none focus:ring-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                {sortOrder === 'terbaru' ? 'Terbaru' : 'Terlama'}
+              </button>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -372,7 +407,7 @@ export default function Home() {
                   <p className="text-sm text-gray-400 dark:text-gray-500">Belum ada data transaksi di periode ini.</p>
                 </div>
               ) : (
-                displayedTransactions.slice(0, 10).map((trx) => (
+                displayedTransactions.slice(0, 10).map((trx: Transaction) => (
                   <div key={trx.id} className="group flex items-center justify-between rounded-2xl bg-gray-50 border border-gray-100 p-4 shadow-sm transition-all hover:border-gray-200 dark:bg-[#111111] dark:border-[#222222] dark:hover:border-[#333333]">
                     <div>
                       <p className="font-medium text-gray-800 dark:text-gray-200">{getCategoryName(trx.category_id)}</p>
