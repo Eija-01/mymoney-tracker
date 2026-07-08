@@ -29,9 +29,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('all');
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('light');
-  const [font, setFont] = useState('sans');
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn');
@@ -50,9 +48,14 @@ export default function Home() {
       if (trxRes.data) setTransactions(trxRes.data as Transaction[]);
       if (catRes.data) setCategories(catRes.data as Category[]);
 
-      // Ambil setting UI dari localStorage
-      setTheme(localStorage.getItem('app-theme') || 'light');
-      setFont(localStorage.getItem('app-font') || 'sans');
+      // Ambil setting theme dari localStorage
+      const savedTheme = localStorage.getItem('app-theme') || 'light';
+      setTheme(savedTheme);
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
 
       setIsLoading(false);
     };
@@ -80,19 +83,16 @@ export default function Home() {
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem('app-theme', theme);
-    localStorage.setItem('app-font', font);
-
-    if (theme === 'dark') {
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('app-theme', newTheme);
+    
+    if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-
-    document.documentElement.className = `font-${font} ${theme === 'dark' ? 'dark' : ''}`;
-    setIsSettingsOpen(false);
   };
 
   const formatRupiah = (angka: number) => {
@@ -104,9 +104,6 @@ export default function Home() {
   };
 
   const getCategoryName = (id: string) => {
-    // Cek di konsol untuk debugging (buka F12 di browser)
-    console.log("Mencari ID:", id, "dalam kategori:", categories);
-
     const category = categories.find((c) => c.id === id);
     return category ? category.name : 'Kategori Tidak Ditemukan';
   };
@@ -138,29 +135,34 @@ export default function Home() {
 
   const balance = totalIncome - totalExpense;
 
-  const expenseData = displayedTransactions
-    .filter((trx) => trx.type === 'pengeluaran')
-    .reduce((acc: { name: string; value: number }[], trx) => {
-      const categoryName = getCategoryName(trx.category_id); 
-      
-      const existing = acc.find((item) => item.name === categoryName);
-      if (existing) {
-        existing.value += trx.amount;
-      } else {
-        acc.push({ name: categoryName, value: trx.amount });
-      }
-      return acc;
-    }, []);
+  // Data untuk grafik pie perbandingan pemasukan vs pengeluaran
+  const incomeExpenseData = useMemo(() => {
+    const data = [];
+    
+    if (totalIncome > 0) {
+      data.push({
+        name: 'Pemasukan',
+        value: totalIncome,
+        type: 'income'
+      });
+    }
+    
+    if (totalExpense > 0) {
+      data.push({
+        name: 'Pengeluaran',
+        value: totalExpense,
+        type: 'expense'
+      });
+    }
+    
+    return data;
+  }, [totalIncome, totalExpense]);
 
-  const COLORS = [
-    '#3b82f6', // Biru
-    '#10b981', // Hijau
-    '#f59e0b', // Oranye
-    '#ef4444', // Merah
-    '#8b5cf6', // Ungu
-    '#ec4899', // Pink
-    '#6366f1', // Indigo
-  ];
+  const COLORS = {
+    income: '#10b981', // Hijau untuk pemasukan
+    expense: '#ef4444', // Merah untuk pengeluaran
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -179,12 +181,21 @@ export default function Home() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Pencatatan Keuangan Anda</p>
           </div>
           <div className="flex gap-3">
+            {/* Tombol Toggle Tema Gelap/Terang */}
             <button
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={toggleTheme}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 border border-gray-200 shadow-sm transition hover:bg-gray-100 dark:bg-[#111111] dark:border-[#222222] dark:hover:bg-[#1a1a1a]"
-              title="Pengaturan"
+              title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
             >
-              ⚙️
+              {theme === 'light' ? (
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              )}
             </button>
             <button
               onClick={handleLogout}
@@ -233,13 +244,13 @@ export default function Home() {
         </section>
 
         <section className="mb-8 rounded-3xl bg-white border border-gray-100 p-6 shadow-sm dark:bg-[#111111] dark:border-[#222222]">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Proporsi Pengeluaran</h3>
-          {expenseData.length > 0 ? (
+          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Perbandingan Pemasukan vs Pengeluaran</h3>
+          {incomeExpenseData.length > 0 ? (
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={expenseData}
+                    data={incomeExpenseData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -247,22 +258,32 @@ export default function Home() {
                     paddingAngle={5}
                     dataKey="value"
                     stroke="none"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                    labelLine={true}
                   >
-                    {expenseData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {incomeExpenseData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.type === 'income' ? COLORS.income : COLORS.expense}
+                      />
                     ))}
                   </Pie>
-                  {/* Perbaikan tipe data di bawah ini menggunakan 'any' */}
                   <Tooltip
                     formatter={(value: any) => formatRupiah(Number(value) || 0)}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: theme === 'dark' ? '#222' : '#fff', color: theme === 'dark' ? '#fff' : '#000' }}
+                    contentStyle={{ 
+                      borderRadius: '12px', 
+                      border: 'none', 
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', 
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff', 
+                      color: theme === 'dark' ? '#fff' : '#000' 
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <div className="flex h-48 items-center justify-center rounded-2xl bg-gray-50 dark:bg-black">
-              <p className="text-sm text-gray-400">Belum ada data pengeluaran di periode ini.</p>
+              <p className="text-sm text-gray-400">Belum ada data transaksi di periode ini.</p>
             </div>
           )}
         </section>
@@ -320,80 +341,6 @@ export default function Home() {
         </section>
 
       </div>
-
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl dark:bg-[#111111] dark:border dark:border-[#222222]">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Pengaturan</h2>
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-[#222222] dark:text-gray-400 dark:hover:bg-[#333333]"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSettings} className="flex flex-col gap-6">
-              <div>
-                <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Tema Aplikasi</label>
-                <div className="flex gap-4">
-                  {/* Perbaikan class Tailwind v4 di bawah ini */}
-                  <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 transition has-checked:border-blue-500 has-checked:bg-blue-50 dark:border-[#333333] dark:bg-black dark:has-checked:border-blue-600 dark:has-checked:bg-blue-900/20">
-                    <input
-                      type="radio"
-                      name="theme"
-                      value="light"
-                      checked={theme === 'light'}
-                      onChange={() => setTheme('light')}
-                      className="hidden"
-                    />
-                    <span className={`text-sm font-medium ${theme === 'light' ? 'text-blue-700 dark:text-blue-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                      Terang
-                    </span>
-                  </label>
-
-                  {/* Perbaikan class Tailwind v4 di bawah ini */}
-                  <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 transition has-checked:border-blue-500 has-checked:bg-blue-50 dark:border-[#333333] dark:bg-black dark:has-checked:border-blue-600 dark:has-checked:bg-blue-900/20">
-                    <input
-                      type="radio"
-                      name="theme"
-                      value="dark"
-                      checked={theme === 'dark'}
-                      onChange={() => setTheme('dark')}
-                      className="hidden"
-                    />
-                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-700 dark:text-blue-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                      Gelap
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Gaya Font</label>
-                <select
-                  value={font}
-                  onChange={(e) => setFont(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#333333] dark:bg-black dark:text-gray-100"
-                >
-                  <option value="sans">Modern (Sans-serif)</option>
-                  <option value="serif">Klasik (Serif)</option>
-                  <option value="mono">Mesin Ketik (Monospace)</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-[0.98]"
-              >
-                Simpan Pengaturan
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
     </main>
   );
 }
