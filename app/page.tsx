@@ -15,7 +15,7 @@ interface Category {
 interface Transaction {
   id: string;
   type: 'pemasukan' | 'pengeluaran';
-  categoryId: string;
+  category_id: string;
   amount: number;
   note: string;
   date: string;
@@ -41,14 +41,16 @@ export default function Home() {
     }
 
     const fetchData = async () => {
-      // Ambil dari Supabase
-      const { data: trxData } = await supabase.from('transactions').select('*');
-      const { data: catData } = await supabase.from('categories').select('*');
+      // Ambil data kategori DAN transaksi dari Supabase secara paralel
+      const [trxRes, catRes] = await Promise.all([
+        supabase.from('transactions').select('*'),
+        supabase.from('categories').select('*')
+      ]);
 
-      if (trxData) setTransactions(trxData);
-      if (catData) setCategories(catData);
+      if (trxRes.data) setTransactions(trxRes.data as Transaction[]);
+      if (catRes.data) setCategories(catRes.data as Category[]);
 
-      // Ambil setting UI tetap dari localStorage
+      // Ambil setting UI dari localStorage
       setTheme(localStorage.getItem('app-theme') || 'light');
       setFont(localStorage.getItem('app-font') || 'sans');
 
@@ -102,8 +104,11 @@ export default function Home() {
   };
 
   const getCategoryName = (id: string) => {
+    // Cek di konsol untuk debugging (buka F12 di browser)
+    console.log("Mencari ID:", id, "dalam kategori:", categories);
+
     const category = categories.find((c) => c.id === id);
-    return category ? category.name : 'Kategori Terhapus';
+    return category ? category.name : 'Kategori Tidak Ditemukan';
   };
 
   const availableMonths = useMemo(() => {
@@ -136,7 +141,8 @@ export default function Home() {
   const expenseData = displayedTransactions
     .filter((trx) => trx.type === 'pengeluaran')
     .reduce((acc: { name: string; value: number }[], trx) => {
-      const categoryName = getCategoryName(trx.categoryId);
+      const categoryName = getCategoryName(trx.category_id); 
+      
       const existing = acc.find((item) => item.name === categoryName);
       if (existing) {
         existing.value += trx.amount;
@@ -146,8 +152,15 @@ export default function Home() {
       return acc;
     }, []);
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
+  const COLORS = [
+    '#3b82f6', // Biru
+    '#10b981', // Hijau
+    '#f59e0b', // Oranye
+    '#ef4444', // Merah
+    '#8b5cf6', // Ungu
+    '#ec4899', // Pink
+    '#6366f1', // Indigo
+  ];
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -285,7 +298,7 @@ export default function Home() {
               displayedTransactions.slice(0, 10).map((trx) => (
                 <div key={trx.id} className="group flex items-center justify-between rounded-2xl bg-gray-50 border border-gray-100 p-4 shadow-sm transition-all hover:border-gray-200 dark:bg-[#111111] dark:border-[#222222] dark:hover:border-[#333333]">
                   <div>
-                    <p className="font-medium text-gray-800 dark:text-gray-200">{getCategoryName(trx.categoryId)}</p>
+                    <p className="font-medium text-gray-800 dark:text-gray-200">{getCategoryName(trx.category_id)}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{trx.date} {trx.note ? `• ${trx.note}` : ''}</p>
                   </div>
                   <div className="flex items-center gap-3">
