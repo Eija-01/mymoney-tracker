@@ -26,7 +26,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-sm">
         
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Selamat Datang</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">My Money Tracker</h1>
           <p className="mt-2 text-sm text-gray-500">Silakan masuk ke akun Anda</p>
         </div>
 
