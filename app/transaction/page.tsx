@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
+import FormattedInput from '../components/FormattedInput'; // Import komponen format input
 
 // Mendefinisikan tipe data
 interface Category {
@@ -28,7 +29,7 @@ export default function TransactionPage() {
     // State untuk form
     const [type, setType] = useState<'pemasukan' | 'pengeluaran'>('pemasukan');
     const [categoryId, setCategoryId] = useState('');
-    const [amount, setAmount] = useState('');
+    const [amount, setAmount] = useState(''); // Menyimpan nilai murni tanpa format
     const [note, setNote] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -69,8 +70,8 @@ export default function TransactionPage() {
             .insert([
                 {
                     type,
-                    category_id: categoryId, // <--- PASTIKAN ini sesuai dengan nama kolom di Supabase
-                    amount: parseFloat(amount),
+                    category_id: categoryId,
+                    amount: parseFloat(amount), // amount sudah dalam format angka murni
                     note,
                     date,
                 },
@@ -94,12 +95,17 @@ export default function TransactionPage() {
         // Mengambil transaksi lama, menambah yang baru, lalu simpan kembali
         const savedTransactions = localStorage.getItem('transactions');
         const existingTransactions = savedTransactions ? JSON.parse(savedTransactions) : [];
-        const updatedTransactions = [newTransaction, ...existingTransactions]; // Data baru di atas
+        const updatedTransactions = [newTransaction, ...existingTransactions];
 
         localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
 
         // Kembali ke dashboard setelah berhasil menyimpan
         router.push('/');
+    };
+
+    // Handler untuk mengupdate amount dari FormattedInput
+    const handleAmountChange = (rawValue: string) => {
+        setAmount(rawValue); // Menyimpan nilai murni tanpa format
     };
 
     // Memfilter kategori untuk dropdown sesuai tipe yang dipilih
@@ -156,17 +162,14 @@ export default function TransactionPage() {
                             </label>
                         </div>
 
-                        {/* Nominal */}
+                        {/* Nominal - Menggunakan FormattedInput */}
                         <div>
                             <label className="mb-2 block text-sm font-medium text-gray-700">Nominal (Rp)</label>
-                            <input
-                                type="number"
+                            <FormattedInput
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-lg font-semibold outline-none transition focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500"
+                                onChange={handleAmountChange}
                                 placeholder="0"
-                                min="1"
-                                required
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-lg font-semibold outline-none transition focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500"
                             />
                         </div>
 
